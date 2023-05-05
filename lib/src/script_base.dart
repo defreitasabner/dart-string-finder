@@ -114,14 +114,19 @@ class StringFinder {
   }
 
   List<String> searchForInnerStrings({required String text, bool onlyi18nPattern = false}) {
-    RegExp pattern = onlyi18nPattern ? RegExp("(\"|').*(\"|').i18n") : RegExp("(\"|').*(\"|')");
+    // ("|'){1}[^'"]*("|'){1}([.][i][1][8][n][(][)]){1}
+    RegExp pattern = onlyi18nPattern ? RegExp(r'("'
+                                              r"|'){1}[^'"
+                                              r'"]*'
+                                              r'("'
+                                              r"|'){1}([.][i][1][8][n][(][)]){1}") : RegExp("[\",']\w*[\",']");
     Iterable<RegExpMatch> matches = pattern.allMatches(text);
     List<String> stringsFound = [];
     for (Match match in matches) {
       if(match[0] != null) {
         String treatedMatch = match[0]!.replaceAll('"', '').replaceAll("'", '');
         if(onlyi18nPattern) {
-          stringsFound.add(treatedMatch.replaceAll('.i18n', ''));
+          stringsFound.add(treatedMatch.replaceAll('.i18n()', ''));
         } else {
           stringsFound.add(treatedMatch); 
         }
