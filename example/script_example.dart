@@ -4,23 +4,36 @@ import 'dart:io';
 import 'package:script/src/script_base.dart';
 
 Future<void> main() async {
-  String sk8erPath = '../sk8ers/lib';
-  String outputPath = './example/files/reference.txt';
+  String sk8erPath = '../Sk8ers-App/lib';
+  String referenceOutputPath = './example/files/reference.txt';
+  String jsonOutputPath = './example/files/pt_BR.json';
   DartFileFinder dartFileFinder = DartFileFinder(
     dirPath: sk8erPath, 
-    ignoreDirs: ['mockup/', 'constants/',],
+    ignoreDirs: ['mockup/', 'constants/', 'i18n/'],
   );
   List<FileSystemEntity> dartFiles = await dartFileFinder.searchForDartFiles();
-  
-  List<FoundString> filesWithStringsToTranslate = [];
-  for(final FileSystemEntity file in dartFiles) {
-    FoundString stringFinder = await openFile(filePath: file.path);
-    if(stringFinder.stringsPerLine.isNotEmpty) {
-      filesWithStringsToTranslate.add(stringFinder);
-    }
+  FileManager fileManager = FileManager();
+  for(FileSystemEntity file in dartFiles) {
+    await fileManager.readFilePerLines(filePath: file.path);
   }
-  Map<String, List<String>> finalData = aggregateStringsFound(list: filesWithStringsToTranslate);
-  writeReferenceFile(outputFilePath: outputPath, data: finalData);
+  StringFinder stringFinder = StringFinder();
+  for(InputedData data in fileManager.extractedData) {
+    stringFinder.getAllInnerString(filePath: data.filePath, textLines: data.lines);
+  }
+  Map<String, List<String>> referenceData = stringFinder.generateReferenceFileData();
+  Map<String, String> jsonData = stringFinder.generateJsonFileData();
+  fileManager.writeReferenceFile(outputFilePath: referenceOutputPath, data: referenceData);
+  fileManager.writeJsonFile(outputFilePath: jsonOutputPath, data: jsonData);
+
+  // List<FoundString> filesWithStringsToTranslate = [];
+  // for(final FileSystemEntity file in dartFiles) {
+  //   FoundString stringFinder = await openFile(filePath: file.path);
+  //   if(stringFinder.stringsPerLine.isNotEmpty) {
+  //     filesWithStringsToTranslate.add(stringFinder);
+  //   }
+  // }
+  // Map<String, List<String>> finalData = aggregateStringsFound(list: filesWithStringsToTranslate);
+  // writeReferenceFile(outputFilePath: outputPath, data: finalData);
 }
 
 Future<List<FileSystemEntity>> searchForDartFiles({required String dirPath}) async{
@@ -48,12 +61,7 @@ Future<FoundString> openFile({required String filePath}) async {
       .transform(LineSplitter());
       int lineCount = 1;
     await for(String line in lines) {
-      List<String> stringsInLine = searchForInnerStrings(
-        text: line, 
-        removeImports: true,
-        removeMapKeys: true,
-        removePart: true,
-      );
+      List<String> stringsInLine = searchForInnerStrings(text: line,);
       if(stringsInLine.isNotEmpty){
         for(String string in stringsInLine) {
           stringFinder.stringsPerLine[string] = [];
@@ -72,7 +80,7 @@ List<String> searchForInnerStrings({required String text, bool removeImports = f
   if(removeImports && containsImport(text: text)) return [];
   if(removePart && containsPart(text: text)) return [];
   if(removeMapKeys && containsMapKeys(text: text)) return [];
-  RegExp pattern = RegExp("(\"|').*(\"|')");
+  RegExp pattern = RegExp("(\"|').*(\"|').i18n()");
   Iterable<RegExpMatch> matches = pattern.allMatches(text);
   List<String> stringsFound = [];
   for (Match match in matches) {

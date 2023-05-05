@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -43,52 +44,115 @@ class DartFileFinder {
 
 }
 
-// class FileManager {
-//   Future<FoundString> openFile({required String filePath}) async {
-//   final File file = File(filePath);
-//   if(await file.exists()) {
-//     FoundString stringFinder = FoundString(filePath: filePath);
-//     Stream<String> lines = file.openRead()
-//       .transform(utf8.decoder)
-//       .transform(LineSplitter());
-//       int lineCount = 1;
-//     await for(String line in lines) {
-//       List<String> stringsInLine = searchForInnerStrings(
-//         text: line, 
-//         removeImports: true,
-//         removeMapKeys: true,
-//         removePart: true,
-//       );
-//       if(stringsInLine.isNotEmpty){
-//         for(String string in stringsInLine) {
-//           stringFinder.stringsPerLine[string] = [];
-//           stringFinder.stringsPerLine[string]!.add(lineCount);
-//         }
-//       }
-//       lineCount++;
-//     }
-//     return stringFinder;
-//     } else {
-//       throw Exception('File do not exists');
-//     }
-//   }
-// }
+class InputedData {
+  final String filePath;
+  final List<String> lines;
+  InputedData({
+    required this.filePath,
+    required this.lines,
+  });
+}
+
+class FileManager {
+
+  List<InputedData> extractedData = [];
+
+  Future<void> readFilePerLines({required String filePath}) async {
+    final File file = File(filePath);
+    if(await file.exists()) {
+      List<String> lines = await file.readAsLines();
+      InputedData inputData = InputedData(filePath: filePath, lines: lines);
+      extractedData.add(inputData);
+    } else {
+      throw Exception('File do not exists');
+    }
+  }
+
+  void writeReferenceFile({required String outputFilePath, required Map<String, List<String>> data}) {
+    final File file = File(outputFilePath);
+    final IOSink sink = file.openWrite();
+    for(String key in data.keys) {
+      sink.write('$key:\n');
+      for(String specificLines in data[key]!) {
+        sink.write('$specificLines\n');
+      }
+      sink.write('\n\n');
+    }
+    sink.close();
+  }
+
+  void writeJsonFile({required String outputFilePath, required Map<String, String> data}) {
+    final File file = File(outputFilePath);
+    final IOSink sink = file.openWrite();
+    JsonEncoder jsonEncoder = JsonEncoder();
+    String json = jsonEncoder.convert(data);
+    print(json);
+    sink.write(json);
+    sink.close();
+  }
+
+}
 
 class StringFinder {
 
-  List<String> searchForInnerStrings({required String text, bool removeImports = false, removeMapKeys = false, removePart = false}) {
-  if(removeImports && containsImport(text: text)) return [];
-  if(removePart && containsPart(text: text)) return [];
-  if(removeMapKeys && containsMapKeys(text: text)) return [];
-  RegExp pattern = RegExp("(\"|').*(\"|')");
-  Iterable<RegExpMatch> matches = pattern.allMatches(text);
-  List<String> stringsFound = [];
-  for (Match match in matches) {
-    if(match[0] != null) {
-      stringsFound.add(match[0]!);  
+  List<FoundString> stringsFoundPerFile = [];
+
+  void getAllInnerString({required String filePath, required List<String> textLines,}) {
+    FoundString foundStrings = FoundString(filePath: filePath);
+    int lineCount = 1;
+    for(final String line in textLines) {
+      List<String> strings = searchForInnerStrings(text: line, onlyi18nPattern: true);
+      if(strings.isNotEmpty) {
+        for(String string in strings) {
+          foundStrings.stringsPerLine[string] = [];
+          foundStrings.stringsPerLine[string]!.add(lineCount);
+        }
+      }
+      lineCount++;
     }
+    stringsFoundPerFile.add(foundStrings);
   }
-  return stringsFound;
+
+  List<String> searchForInnerStrings({required String text, bool onlyi18nPattern = false}) {
+    RegExp pattern = onlyi18nPattern ? RegExp("(\"|').*(\"|').i18n") : RegExp("(\"|').*(\"|')");
+    Iterable<RegExpMatch> matches = pattern.allMatches(text);
+    List<String> stringsFound = [];
+    for (Match match in matches) {
+      if(match[0] != null) {
+        String treatedMatch = match[0]!.replaceAll('"', '').replaceAll("'", '');
+        if(onlyi18nPattern) {
+          stringsFound.add(treatedMatch.replaceAll('.i18n', ''));
+        } else {
+          stringsFound.add(treatedMatch); 
+        }
+      }
+    }
+    return stringsFound;
+  }
+
+  Map<String,List<String>> generateReferenceFileData() {
+    Map<String,List<String>> allStrings = {};
+    for(FoundString stringFinder in stringsFoundPerFile) {
+      for (String key in stringFinder.stringsPerLine.keys) {
+        List<int> lines = stringFinder.stringsPerLine[key]!;
+        String fileLines = '${stringFinder.filePath}: ${lines.toString()}';
+        if(!allStrings.keys.contains(key)) {
+          allStrings[key] = [];
+        }
+        allStrings[key]!.add(fileLines);
+      }
+    }
+    return allStrings;
+  }
+
+  Map<String, String> generateJsonFileData() {
+    Map<String, String> allStrings = {};
+    for (FoundString foundString in stringsFoundPerFile) {
+      for(String string in foundString.stringsPerLine.keys) {
+        allStrings[string] = string;
+      }
+    }
+    return allStrings;
   }
 
   bool containsImport({required String text}) {
@@ -103,6 +167,18 @@ class StringFinder {
 
   bool containsMapKeys({required String text}) {
     return text.contains('"]') || text.contains("']");
+  }
+
+  bool validateString({
+    required String text,
+    required bool removeImports,
+    required bool removePart,
+    required bool removeMapKeys,
+    }) {
+    if(removeImports && containsImport(text: text)) {return true;}
+    else if(removePart && containsPart(text: text)) {return true;}
+    else if(removeMapKeys && containsMapKeys(text: text)) {return true;}
+    else {return false;}
   }
 }
 
