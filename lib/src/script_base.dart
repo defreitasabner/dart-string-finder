@@ -12,7 +12,7 @@ class DartFileFinder {
   });
 
   Future<List<FileSystemEntity>> searchForDartFiles({
-    bool removeIgnoredDirs = true
+    bool ignoredDirs = true
   }) async {
     if(await Directory(dirPath).exists()) {
       List<FileSystemEntity> dirList = await Directory(dirPath).list(recursive: true).toList();
@@ -22,7 +22,7 @@ class DartFileFinder {
           dartFiles.add(entity);
         }
       }
-      if(removeIgnoredDirs && ignoreDirs != null && ignoreDirs!.isNotEmpty) {
+      if(ignoredDirs && ignoreDirs != null && ignoreDirs!.isNotEmpty) {
         for(String ignoredDir in ignoreDirs!) {
           dartFiles = removeIgnoredDartFiles(list: dartFiles, ignoredDir: ignoredDir);
         }
@@ -57,7 +57,7 @@ class FileManager {
 
   List<InputedData> extractedData = [];
 
-  Future<void> readFilePerLines({required String filePath}) async {
+  Future<void> readDartFilePerLines({required String filePath}) async {
     final File file = File(filePath);
     if(await file.exists()) {
       List<String> lines = await file.readAsLines();
@@ -81,12 +81,23 @@ class FileManager {
     sink.close();
   }
 
+  Future<Map<String, dynamic>> readJsonFile({ required String filepath }) async {
+    final File file = File(filepath);
+    if(await file.exists()) {
+      final String content = file.readAsStringSync();
+      JsonDecoder jsonDecoder = JsonDecoder();
+      Map<String, dynamic> json = jsonDecoder.convert(content);
+      return json;
+    } else {
+      throw Exception('File do not exists');
+    }
+  }
+
   void writeJsonFile({required String outputFilePath, required Map<String, String> data}) {
     final File file = File(outputFilePath);
     final IOSink sink = file.openWrite();
     JsonEncoder jsonEncoder = JsonEncoder();
     String json = jsonEncoder.convert(data);
-    print(json);
     sink.write(json);
     sink.close();
   }
