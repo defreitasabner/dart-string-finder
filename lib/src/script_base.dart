@@ -12,7 +12,7 @@ class DartFileFinder {
   });
 
   Future<List<FileSystemEntity>> searchForDartFiles({
-    bool ignoredDirs = true
+    bool removeIgnoredDirs = true
   }) async {
     if(await Directory(dirPath).exists()) {
       List<FileSystemEntity> dirList = await Directory(dirPath).list(recursive: true).toList();
@@ -22,7 +22,7 @@ class DartFileFinder {
           dartFiles.add(entity);
         }
       }
-      if(ignoredDirs && ignoreDirs != null && ignoreDirs!.isNotEmpty) {
+      if(removeIgnoredDirs && ignoreDirs != null && ignoreDirs!.isNotEmpty) {
         for(String ignoredDir in ignoreDirs!) {
           dartFiles = removeIgnoredDartFiles(list: dartFiles, ignoredDir: ignoredDir);
         }
@@ -68,8 +68,8 @@ class FileManager {
     }
   }
 
-  void writeReferenceFile({required String outputFilePath, required Map<String, List<String>> data}) {
-    final File file = File(outputFilePath);
+  void writeReferenceFile({required String filepath, required Map<String, List<String>> data}) {
+    final File file = File(filepath);
     final IOSink sink = file.openWrite();
     for(String key in data.keys) {
       sink.write('$key:\n');
@@ -93,13 +93,25 @@ class FileManager {
     }
   }
 
-  void writeJsonFile({required String outputFilePath, required Map<String, String> data}) {
+  void writeJsonFile({required String outputFilePath, required Map<String, dynamic> data}) {
     final File file = File(outputFilePath);
     final IOSink sink = file.openWrite();
     JsonEncoder jsonEncoder = JsonEncoder();
     String json = jsonEncoder.convert(data);
     sink.write(json);
     sink.close();
+  }
+
+  Future<void> updateJsonFile({ required String filepath, required Map<String, dynamic> newData }) async {
+    final Map<String, dynamic> previousJson = await readJsonFile(filepath: filepath);
+    for(String key in newData.keys) {
+      if(previousJson[key] != null) {
+        newData[key] = previousJson[key];
+      } else {
+        print('New string found: $key');
+      }
+    }
+    writeJsonFile(outputFilePath: filepath, data: newData);
   }
 
 }
