@@ -86,8 +86,12 @@ class FileManager {
     if(await file.exists()) {
       final String content = file.readAsStringSync();
       JsonDecoder jsonDecoder = JsonDecoder();
-      Map<String, dynamic> json = jsonDecoder.convert(content);
-      return json;
+      try {
+        Map<String, dynamic> json = jsonDecoder.convert(content);
+        return json;
+      } catch (_) {
+      }
+        return {};
     } else {
       throw Exception('File do not exists');
     }
@@ -107,8 +111,6 @@ class FileManager {
     for(String key in newData.keys) {
       if(previousJson[key] != null) {
         newData[key] = previousJson[key];
-      } else {
-        print('New string found: $key');
       }
     }
     writeJsonFile(outputFilePath: filepath, data: newData);
