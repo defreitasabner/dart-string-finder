@@ -95,10 +95,14 @@ Future<void> extractStringsToJson({
       if(file.path.contains('.json')) {
         jsonFilesInOutputDir.add(file.path);
         String filename = path.split(file.path).last;
-        stdout.writeln(
-          locales.contains(filename.replaceAll('.json', '')) 
-            ? '- $filename'
-            : '- $filename (CAUTION: it will be overwritten)');
+        if(locales.isEmpty) {
+          stdout.writeln('- $filename');
+        } else {
+          stdout.writeln(
+            locales.contains(filename.replaceAll('.json', '')) 
+              ? '- $filename'
+              : '- $filename (CAUTION: it will be overwritten)');
+        }
       }
     }
   } else {
