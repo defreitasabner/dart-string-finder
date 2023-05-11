@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -83,7 +84,7 @@ Future<void> extractStringsToJson({
 }) async {
 
   final outputDirectory = Directory(outputDir);
-  List<String> jsonFilesInOutputDir = []; //TODO: locale + files
+  List<String> jsonFilesInOutputDir = [];
 
   stdout.writeln('Search directory: $searchDir');
   stdout.writeln('Ignored directories: $ignoredDirs');
@@ -94,17 +95,17 @@ Future<void> extractStringsToJson({
     for(final file in files) {
       if(file.path.contains('.json')) {
         jsonFilesInOutputDir.add(file.path);
-        String filename = path.split(file.path).last;
-        if(locales.isEmpty) {
-          stdout.writeln('- $filename');
-        } else {
-          stdout.writeln(
-            locales.contains(filename.replaceAll('.json', '')) 
-              ? '- $filename'
-              : '- $filename (CAUTION: it will be overwritten)');
-        }
+        String filenameWithExt = path.split(file.path).last;
+        String filenameWithoutExt = filenameWithExt.replaceAll('.json', '');
+        stdout.writeln(
+          locales.contains(filenameWithoutExt) && !files.contains(file) 
+            ? '- $filenameWithExt (it will be created)'
+            : '- $filenameWithExt (it will be updated)');
+        locales.add(filenameWithoutExt);
       }
     }
+    locales = locales.toSet().toList();
+    stdout.writeln('Locales detected: ${locales.toString()}');
   } else {
     stdout.writeln('Output directory do not exist, so it will be created during the process');
     outputDirectory.create(recursive: true);
@@ -140,34 +141,18 @@ Future<void> extractStringsToJson({
     Map<String, dynamic> jsonData = stringFinder.generateJsonFileData();
     stdout.writeln('${jsonData.keys.length} strings were found!');
     if(locales.isNotEmpty) {
-      if(jsonFilesInOutputDir.isNotEmpty) {
-        for(String filepath in jsonFilesInOutputDir) {
-            if(locales.contains(path.split(filepath).last.replaceAll('.json', ''))) {
-              fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
-              stdout.writeln('- ${path.split(filepath).last} was updated');
-            } else {
-              fileManager.writeJsonFile(outputFilePath: filepath, data: jsonData);
-              stdout.writeln('- ${path.split(filepath).last} was created or overwrite');
-            }
-        }
-      } else {
-        stdout.writeln('Creating locale files in $outputDir:');
-        for(String locale in locales) {
-          fileManager.writeJsonFile(outputFilePath: '$outputDir/$locale.json', data: jsonData);
-          stdout.writeln('- $locale.json');
+      for(String locale in locales) {
+        if(jsonFilesInOutputDir.any((filepath) => filepath.contains(locale))) {
+          fileManager.updateJsonFile(filepath: path.join(outputDir,'$locale.json'), newData: jsonData);
+          stdout.writeln('- $locale.json was updated');
+        } else {
+          fileManager.writeJsonFile(outputFilePath: path.join(outputDir,'$locale.json'), data: jsonData);
+          stdout.writeln('- $locale.json was created');
         }
       }
     } else {
-      if(jsonFilesInOutputDir.isNotEmpty) {
-        stdout.writeln('Updated locale files in $outputDir:');
-        for(String filepath in jsonFilesInOutputDir) {
-          fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
-          stdout.writeln('- ${path.split(filepath).last}');
-        }
-      } else {
-        fileManager.writeJsonFile(outputFilePath: '$outputDir/strings.json', data: jsonData);
-        stdout.writeln('Created locale file strings.json in $outputDir');
-      }
+      fileManager.writeJsonFile(outputFilePath: '$outputDir/strings.json', data: jsonData);
+      stdout.writeln('Created locale file strings.json in $outputDir');
     }
   } else {
     exit(0);
