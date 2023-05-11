@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:script/src/script_base.dart';
 
-const String extractToJson = 'extract';
-const String updateJson = 'update';
+const String extractCommand = 'extract';
+const String helpCommand = 'help';
 const String createReferenceFile = 'reference-file';
 const String ignoredDirsOptions = 'ignore-dirs';
 const String localeOptions = 'locale';
@@ -13,34 +12,64 @@ const String verboseMode = 'verbose';
 
 void main(List<String> arguments) {
   exitCode = 0;
+
+  final extractCommandArgParser = ArgParser()
+    ..addMultiOption(
+      ignoredDirsOptions,
+      abbr: 'i',
+      valueHelp: 'dirnames',
+      help: 'List all directories, separated by comma(,), to ignore inner Search Directory',
+    )
+    ..addMultiOption(
+      localeOptions, 
+      abbr: 'l',
+      valueHelp: 'language_code',
+      help: 'List all locale json file that you want to create.',
+    )
+    ..addFlag(
+      createReferenceFile, 
+      abbr: 'r',
+      negatable: false, 
+      help: 'Create a reference file (.txt) list all strings found by files and lines.'
+    )
+    ..addFlag(
+      verboseMode, 
+      abbr: 'v',
+      negatable: false,
+      help: 'Show additional diagnostic info.' 
+    );
+
   final parser = ArgParser()
-    ..addCommand(extractToJson)
-    ..addCommand(updateJson)
-    ..addMultiOption(ignoredDirsOptions, abbr: 'i')
-    ..addMultiOption(localeOptions, abbr: 'l')
-    ..addFlag(createReferenceFile, negatable: true, abbr: 'r')
-    ..addFlag(verboseMode, negatable: false, abbr: 'v');
+    ..addCommand(extractCommand, extractCommandArgParser)
+    ..addCommand(helpCommand);
 
   ArgResults argResults = parser.parse(arguments);
 
-  switch (argResults.command!.name) {
-    case extractToJson:
+  switch (argResults.command?.name) {
+    case extractCommand:
       extractStringsToJson(
         searchDir: argResults.command!.rest[0],
         outputDir: argResults.command!.rest.length > 1 ? argResults.command!.rest[1] : './example/files',
-        ignoredDirs: argResults[ignoredDirsOptions],
-        locales: argResults[localeOptions],
-        referenceFile: argResults[createReferenceFile] as bool,
-        verboseMode: argResults[verboseMode] as bool,
-      );
+        ignoredDirs: argResults.command![ignoredDirsOptions],
+        locales: argResults.command![localeOptions],
+        referenceFile: argResults.command![createReferenceFile] as bool,
+        verboseMode: argResults.command![verboseMode] as bool,
+      );  
       break;
-    case updateJson:
+    case helpCommand:
+      for(final command in parser.commands.keys) {
+        if(command != helpCommand) {
+          print('[$command]');
+          print(parser.commands[command]?.usage);
+        }
+
+      }
       break;
     default:
-      exitCode = 1;
-      break;
+      exitCode = 2;
+      stderr.writeln('Invalid command: ${argResults.command}');
+      exit(2);
   }
-
 }
 
 Future<void> extractStringsToJson({ 
@@ -53,7 +82,7 @@ Future<void> extractStringsToJson({
 }) async {
 
   final outputDirectory = Directory(outputDir);
-  List<String> filesInOutputDirectory = [];
+  List<String> jsonFilesInOutputDir = [];
 
   stdout.writeln('Search directory: $searchDir');
   stdout.writeln('Ignored directories: $ignoredDirs');
@@ -62,13 +91,13 @@ Future<void> extractStringsToJson({
     List<FileSystemEntity> files = outputDirectory.listSync(recursive: true);
     stdout.writeln('These json files were found in output directory:');
     for(final file in files) {
-      filesInOutputDirectory.add(file.path);
       if(file.path.contains('.json')) {
+        jsonFilesInOutputDir.add(file.path);
         String filename = file.path.split('/').last;
         stdout.writeln(
           locales.contains(filename.replaceAll('.json', '')) 
-            ? '- $filename (will be overwritten)'
-            : '- $filename');
+            ? '- $filename'
+            : '- $filename (CAUTION: it will be overwritten)');
       }
     }
   } else {
@@ -105,9 +134,8 @@ Future<void> extractStringsToJson({
     Map<String, dynamic> jsonData = stringFinder.generateJsonFileData();
     stdout.writeln('${jsonData.keys.length} strings were found!');
     if(locales.isNotEmpty) {
-      if(filesInOutputDirectory.isNotEmpty) {
-        for(String filepath in filesInOutputDirectory) {
-          if(filepath.contains('.json')) {
+      if(jsonFilesInOutputDir.isNotEmpty) {
+        for(String filepath in jsonFilesInOutputDir) {
             if(locales.contains(filepath.split('/').last.replaceAll('.json', ''))) {
               fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
               stdout.writeln('- ${filepath.split("/").last} was updated');
@@ -115,7 +143,6 @@ Future<void> extractStringsToJson({
               fileManager.writeJsonFile(outputFilePath: filepath, data: jsonData);
               stdout.writeln('- ${filepath.split("/").last} was created or overwrite');
             }
-          }
         }
       } else {
         stdout.writeln('Creating locale files in $outputDir:');
@@ -125,13 +152,11 @@ Future<void> extractStringsToJson({
         }
       }
     } else {
-      if(filesInOutputDirectory.isNotEmpty) {
+      if(jsonFilesInOutputDir.isNotEmpty) {
         stdout.writeln('Updated locale files in $outputDir:');
-        for(String filepath in filesInOutputDirectory) {
-          if(filepath.contains('.json')) {
-            fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
-            stdout.writeln('- ${filepath.split("/").last}');
-          }
+        for(String filepath in jsonFilesInOutputDir) {
+          fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
+          stdout.writeln('- ${filepath.split("/").last}');
         }
       } else {
         fileManager.writeJsonFile(outputFilePath: '$outputDir/strings.json', data: jsonData);
@@ -141,28 +166,4 @@ Future<void> extractStringsToJson({
   } else {
     exit(0);
   }
-}
-
-Future<void> updateJsonStrings({
-  required String dirPath,
-  required String jsonDir,
-  List<String> ignoredDirs = const [],
-  bool referenceFile = false,
-  bool verboseMode = false,  
-}) async {
-  DartFileFinder dartFileFinder = DartFileFinder(
-    dirPath: dirPath, 
-    ignoreDirs: ignoredDirs,
-  );
-  List<FileSystemEntity> dartFiles = await dartFileFinder.searchForDartFiles();
-  FileManager fileManager = FileManager();
-  for(FileSystemEntity file in dartFiles) {
-    await fileManager.readDartFilePerLines(filePath: file.path);
-  }
-  StringFinder stringFinder = StringFinder();
-  for(InputedData data in fileManager.extractedData) {
-    stringFinder.getAllInnerString(filePath: data.filePath, textLines: data.lines);
-  }
-  Map<String, dynamic> jsonData = stringFinder.generateJsonFileData();
-  fileManager.updateJsonFile(filepath: jsonDir, newData: jsonData);
 }
