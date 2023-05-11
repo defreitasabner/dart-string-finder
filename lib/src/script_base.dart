@@ -116,6 +116,25 @@ class FileManager {
     writeJsonFile(outputFilePath: filepath, data: newData);
   }
 
+  Future<void> writeOrUpdateJsonFile({
+    required String outputFileName,
+    required String outputDirPath,
+    required Map<String, dynamic> newData,
+  }) async{
+    final outputDir = Directory(outputDirPath);
+    if(await outputDir.exists()) {
+      final listFiles = outputDir.listSync();
+      for(FileSystemEntity file in listFiles) {
+        if(file.path.contains(outputFileName)) {
+          return updateJsonFile(filepath: file.path, newData: newData);
+        }
+      }
+      return writeJsonFile(outputFilePath: outputFileName, data: newData);
+    } else {
+      throw Exception('Output Directory do not exists.');
+    }
+  }
+
 }
 
 class StringFinder {
