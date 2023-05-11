@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:path/path.dart' as path;
 import 'package:script/src/script_base.dart';
 
 const String extractCommand = 'extract';
@@ -93,7 +94,7 @@ Future<void> extractStringsToJson({
     for(final file in files) {
       if(file.path.contains('.json')) {
         jsonFilesInOutputDir.add(file.path);
-        String filename = file.path.split('/').last;
+        String filename = path.split(file.path).last;
         stdout.writeln(
           locales.contains(filename.replaceAll('.json', '')) 
             ? '- $filename'
@@ -136,12 +137,12 @@ Future<void> extractStringsToJson({
     if(locales.isNotEmpty) {
       if(jsonFilesInOutputDir.isNotEmpty) {
         for(String filepath in jsonFilesInOutputDir) {
-            if(locales.contains(filepath.split('/').last.replaceAll('.json', ''))) {
+            if(locales.contains(path.split(filepath).last.replaceAll('.json', ''))) {
               fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
-              stdout.writeln('- ${filepath.split("/").last} was updated');
+              stdout.writeln('- ${path.split(filepath).last} was updated');
             } else {
               fileManager.writeJsonFile(outputFilePath: filepath, data: jsonData);
-              stdout.writeln('- ${filepath.split("/").last} was created or overwrite');
+              stdout.writeln('- ${path.split(filepath).last} was created or overwrite');
             }
         }
       } else {
@@ -156,7 +157,7 @@ Future<void> extractStringsToJson({
         stdout.writeln('Updated locale files in $outputDir:');
         for(String filepath in jsonFilesInOutputDir) {
           fileManager.updateJsonFile(filepath: filepath, newData: jsonData);
-          stdout.writeln('- ${filepath.split("/").last}');
+          stdout.writeln('- ${path.split(filepath).last}');
         }
       } else {
         fileManager.writeJsonFile(outputFilePath: '$outputDir/strings.json', data: jsonData);
