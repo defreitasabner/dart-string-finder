@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:path/path.dart' as path;
-import 'package:script/src/script_base.dart';
+import 'package:string_finder/src/script_base.dart';
 
 const String extractCommand = 'extract';
 const String helpCommand = 'help';
@@ -83,13 +83,13 @@ Future<void> extractStringsToJson({
 }) async {
 
   final outputDirectory = Directory(outputDir);
-  List<String> jsonFilesInOutputDir = [];
+  List<String> jsonFilesInOutputDir = []; //TODO: locale + files
 
   stdout.writeln('Search directory: $searchDir');
   stdout.writeln('Ignored directories: $ignoredDirs');
   stdout.writeln('Output directory: $outputDir');
   if(await outputDirectory.exists()) {
-    List<FileSystemEntity> files = outputDirectory.listSync(recursive: true);
+    List<FileSystemEntity> files = outputDirectory.listSync();
     stdout.writeln('These json files were found in output directory:');
     for(final file in files) {
       if(file.path.contains('.json')) {
@@ -107,6 +107,7 @@ Future<void> extractStringsToJson({
     }
   } else {
     stdout.writeln('Output directory do not exist, so it will be created during the process');
+    outputDirectory.create(recursive: true);
   }
   stdout.writeln('Do you want to continue? [y/n]');
   String response = stdin.readLineSync() ?? 'n';

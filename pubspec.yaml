@@ -1,5 +1,5 @@
-name: script
-description: A starting point for Dart libraries or applications.
+name: string_finder
+description: A command-line to search for strings marked with i18n() from localizations package.
 version: 1.0.0
 # repository: https://github.com/my_org/my_repo
 
