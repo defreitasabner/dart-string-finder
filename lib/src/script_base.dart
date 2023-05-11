@@ -100,7 +100,7 @@ class FileManager {
   void writeJsonFile({required String outputFilePath, required Map<String, dynamic> data}) {
     final File file = File(outputFilePath);
     final IOSink sink = file.openWrite();
-    JsonEncoder jsonEncoder = JsonEncoder();
+    JsonEncoder jsonEncoder = JsonEncoder.withIndent('  ');
     String json = jsonEncoder.convert(data);
     sink.write(json);
     sink.close();
