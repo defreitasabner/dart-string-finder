@@ -102,7 +102,7 @@ class FileManager {
     final IOSink sink = file.openWrite();
     JsonEncoder jsonEncoder = JsonEncoder.withIndent('  ');
     String json = jsonEncoder.convert(data);
-    sink.write(json);
+    sink.write(json.replaceAll(r'\\', r'\'));
     sink.close();
   }
 
