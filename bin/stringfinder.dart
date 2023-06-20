@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:path/path.dart' as path;
-import 'package:string_finder/src/script_base.dart';
+
+import 'package:stringfinder/stringfinder.dart';
 
 const String extractCommand = 'extract';
 const String helpCommand = 'help';

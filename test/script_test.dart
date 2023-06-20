@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:string_finder/script.dart';
+import 'package:stringfinder/stringfinder.dart';
 
 void main() {
   group('A group of tests', () {
