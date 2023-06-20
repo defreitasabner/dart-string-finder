@@ -1,13 +1,14 @@
-name: script
-description: A starting point for Dart libraries or applications.
+name: string_finder
+description: A command-line to search for strings marked with i18n() from flutter package localization.
 version: 1.0.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: '>=2.19.5 <3.0.0'
 
-# dependencies:
-#   path: ^1.8.0
+dependencies:
+  path: ^1.8.0
+  args: ^2.4.1
 
 dev_dependencies:
   lints: ^2.0.0

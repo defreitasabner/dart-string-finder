@@ -1,16 +1,10 @@
-// import 'package:script/script.dart';
-// import 'package:test/test.dart';
+import 'package:test/test.dart';
 
-// void main() {
-//   group('A group of tests', () {
-//     final awesome = Awesome();
+import 'package:string_finder/script.dart';
 
-//     setUp(() {
-//       // Additional setup goes here.
-//     });
-
-//     test('First Test', () {
-//       expect(awesome.isAwesome, isTrue);
-//     });
-//   });
-// }
+void main() {
+  group('A group of tests', () {
+    test('First Test', () {
+    });
+  });
+}

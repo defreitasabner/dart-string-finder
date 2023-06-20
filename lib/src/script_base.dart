@@ -57,7 +57,7 @@ class FileManager {
 
   List<InputedData> extractedData = [];
 
-  Future<void> readFilePerLines({required String filePath}) async {
+  Future<void> readDartFilePerLines({required String filePath}) async {
     final File file = File(filePath);
     if(await file.exists()) {
       List<String> lines = await file.readAsLines();
@@ -68,8 +68,8 @@ class FileManager {
     }
   }
 
-  void writeReferenceFile({required String outputFilePath, required Map<String, List<String>> data}) {
-    final File file = File(outputFilePath);
+  void writeReferenceFile({required String filepath, required Map<String, List<String>> data}) {
+    final File file = File(filepath);
     final IOSink sink = file.openWrite();
     for(String key in data.keys) {
       sink.write('$key:\n');
@@ -81,14 +81,58 @@ class FileManager {
     sink.close();
   }
 
-  void writeJsonFile({required String outputFilePath, required Map<String, String> data}) {
+  Future<Map<String, dynamic>> readJsonFile({ required String filepath }) async {
+    final File file = File(filepath);
+    if(await file.exists()) {
+      final String content = file.readAsStringSync();
+      JsonDecoder jsonDecoder = JsonDecoder();
+      try {
+        Map<String, dynamic> json = jsonDecoder.convert(content);
+        return json;
+      } catch (_) {
+      }
+        return {};
+    } else {
+      throw Exception('File do not exists');
+    }
+  }
+
+  void writeJsonFile({required String outputFilePath, required Map<String, dynamic> data}) {
     final File file = File(outputFilePath);
     final IOSink sink = file.openWrite();
-    JsonEncoder jsonEncoder = JsonEncoder();
+    JsonEncoder jsonEncoder = JsonEncoder.withIndent('  ');
     String json = jsonEncoder.convert(data);
-    print(json);
-    sink.write(json);
+    sink.write(json.replaceAll(r'\\', r'\'));
     sink.close();
+  }
+
+  Future<void> updateJsonFile({ required String filepath, required Map<String, dynamic> newData }) async {
+    final Map<String, dynamic> previousJson = await readJsonFile(filepath: filepath);
+    for(String key in newData.keys) {
+      if(previousJson[key] != null) {
+        newData[key] = previousJson[key];
+      }
+    }
+    writeJsonFile(outputFilePath: filepath, data: newData);
+  }
+
+  Future<void> writeOrUpdateJsonFile({
+    required String outputFileName,
+    required String outputDirPath,
+    required Map<String, dynamic> newData,
+  }) async{
+    final outputDir = Directory(outputDirPath);
+    if(await outputDir.exists()) {
+      final listFiles = outputDir.listSync();
+      for(FileSystemEntity file in listFiles) {
+        if(file.path.contains(outputFileName)) {
+          return updateJsonFile(filepath: file.path, newData: newData);
+        }
+      }
+      return writeJsonFile(outputFilePath: outputFileName, data: newData);
+    } else {
+      throw Exception('Output Directory do not exists.');
+    }
   }
 
 }
@@ -119,14 +163,14 @@ class StringFinder {
                                               r"|'){1}[^'"
                                               r'"]*'
                                               r'("'
-                                              r"|'){1}([.][i][1][8][n][(][)]){1}") : RegExp("[\",']\w*[\",']");
+                                              r"|'){1}([.][i][1][8][n]){1}") : RegExp("[\",']\w*[\",']");
     Iterable<RegExpMatch> matches = pattern.allMatches(text);
     List<String> stringsFound = [];
     for (Match match in matches) {
       if(match[0] != null) {
         String treatedMatch = match[0]!.replaceAll('"', '').replaceAll("'", '');
         if(onlyi18nPattern) {
-          stringsFound.add(treatedMatch.replaceAll('.i18n()', ''));
+          stringsFound.add(treatedMatch.replaceAll('.i18n', ''));
         } else {
           stringsFound.add(treatedMatch); 
         }
